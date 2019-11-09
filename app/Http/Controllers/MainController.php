@@ -65,40 +65,38 @@ class MainController extends Controller {
         // Convert the template into text
         $str = Storage::disk('public')->get('templates/' .$filename);
 
-        // TODO: Replace this with a DOM-Parser in order to pass field names and types of data to collect.
-
+        // Convert this new text string into a parsable DOM object
         $dom = HtmlDomParser::str_get_html($str);
 
+        // Find elements that are marked for dynamic data
         $elements = $dom->find('[data-name]');
 
-//dd($elements[0]->attr);
-
-        // This will be the array object we send to the view
+        // This will be the array object that holds all of the dynamic field information
         $fields = array();
 
         foreach ($elements as $element) {
 
+            // Create a temporary array
             $arr = array();
 
+            // Bring in the marked data from the template into this temp array
             $arr['type'] = $element->attr['data-type'];
             $arr['name'] = $element->attr['data-name'];
 
+            // We require the 'fieldname' used, to follow a naming convention
             $foo = preg_replace('/\s+/', '_', $arr['name']);
             $arr['fieldname'] = strtolower($foo);
-
-
 
             array_push($fields, $arr);
         }
 
-        //now you have an array of all of the fields that need to be populated.
+    //now you have an array of all of the fields that need to be populated.
 
+        // This will be the array object we send to the view
         $data = array();
         $data['template_filename'] = $filename;
         $data['fields'] = $fields;
 
-// dd($data);
-//return redirect()->view('collect', compact('data'));
         return view('collect', compact('data'));
 
     }
@@ -110,85 +108,47 @@ class MainController extends Controller {
 
     public function build(Request $request) {
 
+        // This will be the array object we send to the view
         $data = array();
+
+        // A timestamp is used as a prefix for image filenames, to allow the use of readable filenames (maintaining
+        // original filenames
         $data['timestamp'] = time();
 
+        // Rip through all of the incoming data (these are all of the POST form data fields)
         foreach ($request->keys() as $key) {
 
+            // Skip the token, we don't need it (at this point)
             if ($key != '_token') {
 
+                // Determine if the incoming data is an image or file
                 if ($request->hasFile($key)) {
 
+                    // Prepend the filename with timestamp
                     $image_name = $data['timestamp']. '_' .$request->{$key}->getClientOriginalName();
 
+                    // Store the file
                     Storage::putFileAs(
                         'public/templates/images/imported', $request->{$key}, $image_name
                     );
 
+                    // Add the new filename data to the $data array
                     $data[$key] = $image_name;
 
                 } else {
 
+                    // Transfer the incoming data to the $data array
                     $data[$key] = $request->{$key};
 
                 }
             }
-
         }
 
-//    dd($data);
-//        $data = $request;
-//        $data['timestamp'] = time();
-//
-//        // Create an array that contains the Form names of each image (file) that is potentially coming in
-//        $image_keys = $request->files->keys();
-//
-//        // Rip through this array
-//        foreach ($image_keys as $key) {
-//
-//            // Check to see if a file was attached
-//            if ($request->hasFile($key)) {
-//
-//                $image_name = $data['timestamp']. '_' .$request->{$key}->getClientOriginalName();
-//
-//                Storage::putFileAs(
-//                    'public/templates/images/imported', $request->{$key}, $image_name
-//                );
-//
-//                $data[$key]->pathname = $request->{$key}->getClientOriginalName();
-//
-//                //dd('file stored');
-//
-//                //print $key;
-//
-//                //dd($request->{$key}->getClientOriginalName());
-//
-//                //dd($request->{$key});
-//            }
-//
-//        }
-
-//dd($data->event_image);
-//dd($image_keys);
-
-//dd($request->event_image->getClientOriginalName());
-
-    //foreach ($request->files as $file) {
-        //print $file;
-//print $file->getClientOriginalName();
-        //$image_name = $data['timestamp']. '_' .$file->getClientOriginalName();
-
-       // Storage::putFileAs(
-            //'public/templates/images/imported', $file, $image_name
-        //);
-
-    //}
-
-    //dd($data);
-
+        // Strip-off the unnecessary bits from the full template filename, so we can call it as a view
         $view = explode('.blade.php', $request['template_filename']);
 
-    // Convert all the data necessary to build this template info a JSON string
+        // Convert all the data necessary to build this template info a JSON string
+        // TODO: Store this object into a db that is to be created
         $obj = json_encode($data);
 
         return view('templates.' .$view[0], compact('data'));
