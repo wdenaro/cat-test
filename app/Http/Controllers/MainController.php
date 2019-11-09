@@ -135,6 +135,7 @@ class MainController extends Controller {
             }
 
         }
+
 //    dd($data);
 //        $data = $request;
 //        $data['timestamp'] = time();
@@ -167,27 +168,27 @@ class MainController extends Controller {
 //
 //        }
 
-        //dd($data->event_image);
+//dd($data->event_image);
 //dd($image_keys);
 
 //dd($request->event_image->getClientOriginalName());
 
-        //foreach ($request->files as $file) {
-            //print $file;
+    //foreach ($request->files as $file) {
+        //print $file;
 //print $file->getClientOriginalName();
-            //$image_name = $data['timestamp']. '_' .$file->getClientOriginalName();
+        //$image_name = $data['timestamp']. '_' .$file->getClientOriginalName();
 
-           // Storage::putFileAs(
-                //'public/templates/images/imported', $file, $image_name
-            //);
+       // Storage::putFileAs(
+            //'public/templates/images/imported', $file, $image_name
+        //);
 
-        //}
+    //}
 
-        //dd($data);
+    //dd($data);
 
         $view = explode('.blade.php', $request['template_filename']);
 
-        // Convert all the data necessary to build this template info a JSON string
+    // Convert all the data necessary to build this template info a JSON string
         $obj = json_encode($data);
 
         return view('templates.' .$view[0], compact('data'));
