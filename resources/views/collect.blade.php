@@ -35,6 +35,10 @@
             @endforeach
 
             <input type="hidden" name="template_filename" value="{{ $data['template_filename'] }}">
+            <input type="hidden" name="pdf_width" value="{{ $data['pdf_width'] }}">
+            <input type="hidden" name="pdf_height" value="{{ $data['pdf_height'] }}">
+            <input type="hidden" name="final_width" value="{{ $data['final_width'] }}">
+            <input type="hidden" name="final_height" value="{{ $data['final_height'] }}">
             <button type="submit">Submit</button>
         </form>
 

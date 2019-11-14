@@ -25,7 +25,15 @@ Route::post('build', 'MainController@build')
     ->name('build');
 
 
+Route::get('pdf/{id}', 'MainController@pdf')
+    ->name('pdf');
 
+
+
+
+Route::get('info', function() {
+   dd(phpInfo());
+});
 
 
 Route::get('test_a/{pdf?}', 'MainController@test_a')

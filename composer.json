@@ -8,8 +8,10 @@
         "php": ">=7.0.0",
         "barryvdh/laravel-dompdf": "^0.8.5",
         "fideloper/proxy": "~3.3",
+        "intervention/image": "^2.5",
         "laravel/framework": "5.5.*",
         "laravel/tinker": "~1.0",
+        "paquettg/php-html-parser": "^2.1",
         "sunra/php-simple-html-dom-parser": "^1.5"
     },
     "require-dev": {

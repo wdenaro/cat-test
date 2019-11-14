@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Image;
+use Imagick;
+use App\Data;
 use PDF;
-use Sunra\PhpSimple\HtmlDomParser;
+use PHPHtmlParser\Dom;
 
 
 class MainController extends Controller {
@@ -40,6 +43,8 @@ class MainController extends Controller {
             $parts = explode('.blade.php', $arr['filename']);
             $arr['name'] = $parts[0];
 
+            $arr['thumb'] = $arr['name']. '.jpg';
+
             // Push information for each template into the array object
             array_push($templates, $arr);
 
@@ -65,11 +70,18 @@ class MainController extends Controller {
         // Convert the template into text
         $str = Storage::disk('public')->get('templates/' .$filename);
 
-        // Convert this new text string into a parsable DOM object
-        $dom = HtmlDomParser::str_get_html($str);
+        $dom = new Dom;
+        $dom->load($str);
+
+        // Parse to extract the final width and height from the template
+        $info = $dom->find('div#info');
+        $final_width = $info->tag->{'data-width'}['value'];
+        $final_height = $info->tag->{'data-height'}['value'];
+        $pdf_width = $final_width + 70;
+        $pdf_height = $final_height + 130;
 
         // Find elements that are marked for dynamic data
-        $elements = $dom->find('[data-name]');
+        $elements = $dom->find('div,span[data-name]');
 
         // This will be the array object that holds all of the dynamic field information
         $fields = array();
@@ -80,8 +92,8 @@ class MainController extends Controller {
             $arr = array();
 
             // Bring in the marked data from the template into this temp array
-            $arr['type'] = $element->attr['data-type'];
-            $arr['name'] = $element->attr['data-name'];
+            $arr['type'] = $element->tag->{'data-type'}['value'];
+            $arr['name'] = $element->tag->{'data-name'}['value'];
 
             // We require the 'fieldname' used, to follow a naming convention
             $foo = preg_replace('/\s+/', '_', $arr['name']);
@@ -89,13 +101,16 @@ class MainController extends Controller {
 
             array_push($fields, $arr);
         }
-
-    //now you have an array of all of the fields that need to be populated.
+        //now you have an array of all of the fields that need to be populated.
 
         // This will be the array object we send to the view
         $data = array();
         $data['template_filename'] = $filename;
         $data['fields'] = $fields;
+        $data['pdf_width'] = $pdf_width;
+        $data['pdf_height'] = $pdf_height;
+        $data['final_width'] = $final_width;
+        $data['final_height'] = $final_height;
 
         return view('collect', compact('data'));
 
@@ -133,7 +148,8 @@ class MainController extends Controller {
                     );
 
                     // Add the new filename data to the $data array
-                    $data[$key] = $image_name;
+                    $data[$key] = asset('storage/templates/images/imported/' .$image_name);
+                    $data[$key.'___pdf'] = public_path('storage/templates/images/imported/' .$image_name);
 
                 } else {
 
@@ -148,10 +164,85 @@ class MainController extends Controller {
         $view = explode('.blade.php', $request['template_filename']);
 
         // Convert all the data necessary to build this template info a JSON string
-        // TODO: Store this object into a db that is to be created
         $obj = json_encode($data);
 
+        $json_data = new Data;
+
+        $json_data->json_data = $obj;
+
+        $json_data->save();
+
+        $insertedId = $json_data->id;
+
+        $data['id'] = $insertedId;
+
         return view('templates.' .$view[0], compact('data'));
+    }
+
+
+
+
+    public function pdf($id = null) {
+
+        if ($id) {
+
+            $results = Data::where('id', $id)
+                ->limit(1)
+                ->get();
+
+            $json = $results[0]->json_data;
+
+            $data = json_decode($json, $assoc = TRUE);
+
+            $data['id'] = $id;
+
+// Uncomment if you need to re-target images to full root paths for PDF generation
+//            foreach ($data as $key => $value) {
+//
+//                $target = $key. '___pdf';
+//
+//                if (array_key_exists($target, $data)) {
+//                    $data[$key] = $data[$target];
+//                }
+//            }
+
+
+//dd($data);
+            // Strip-off the unnecessary bits from the full template filename, so we can call it as a view
+            $view = explode('.blade.php', $data['template_filename']);
+
+            $pdf = PDF::loadView('templates.' .$view[0], compact('data'));
+            $pdf->setPaper(array(0, 0, $data['pdf_width'], $data['pdf_height']), 'portrait');
+            $pdf->getDomPDF()->set_option('dpi', 72);
+            $pdf->getDomPDF()->set_option('enable_html5_parser', true);
+            $pdf->getDomPDF()->set_option('enable_remote', true);
+            $pdf->getDomPDF()->set_option('font_height_ratio', 0.9);
+
+            // TODO: logic to determine if chart has been created, and stored
+            // $pdf->save(storage_path('app/public/charts/' .$chart_id. '.pdf'));
+
+
+            // TODO: Determine naming convention for the downloaded version
+
+            $time = time();
+
+            $pdf->save(public_path('storage/output/pdf/' .$view[0]. '_' .$time. '.pdf'));
+
+
+            $image = new Imagick();
+            $image->readImage(public_path('storage/output/pdf/' .$view[0]. '_' .$time. '.pdf'));
+            $image->setImageFormat('jpg');
+            $image->cropImage($data['final_width'], $data['final_height'], 36, 36);
+            $image->writeImage(public_path('storage/output/image/' .$view[0]. '_' .$time. '.jpg'));
+
+            return $pdf->download($view[0]. '_' .$time. '.pdf');
+
+
+
+        } else {
+            dd('id required');
+        }
+
     }
 
 
